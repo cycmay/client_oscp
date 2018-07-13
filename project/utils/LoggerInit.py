@@ -1,5 +1,6 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
+# __author__: bicycle
+
 import logging.config
 import logging
 import time
@@ -17,15 +18,16 @@ class LoggerInit(object):
 
     def __init__(self, *args):
         self.args = args if args else None
-
-        dir_path = os.path.join("log/", '/'.join(args))
+        dir_path = "log"
+        for arg in args:
+            dir_path = os.path.join(dir_path, arg)
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
-        self.log_file_path = dir_path + "/" + "{0}_{1}.log".format(__name__, time.strftime("%Y_%m_%d"))
+        self.log_file_path = os.path.join(dir_path, "{0}_{1}.log".format(__name__, time.strftime("%Y_%m_%d")))
 
     def rotating_init(self):
         logger = logging.getLogger("main")
-        timeLogHandler = RotatingFileHandler(self.log_file_path, 1024 * 1024 * 5, 20, 'utf-8')
+        timeLogHandler = RotatingFileHandler(self.log_file_path, maxBytes=1024 * 1024 * 5, backupCount=5, encoding="UTF-8")
         logger.setLevel(logging.DEBUG)
         timeLogHandler.setLevel(logging.DEBUG)
         consoleLogHandler = logging.StreamHandler()

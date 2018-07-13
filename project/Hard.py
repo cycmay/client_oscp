@@ -1,4 +1,4 @@
-# coding:utf-8
+# -*- coding: utf-8 -*-
 # __author__: bicycle
 
 from ctypes import *
@@ -8,9 +8,8 @@ from project.utils.LoggerInit import LoggerInit
 import logging
 import os
 
-LoggerInit("DSO").rotating_init()
+loggerint  = LoggerInit("DSO").rotating_init()
 logger = logging.getLogger("main")
-
 # dll 文件路径
 DLL_PATH_HTHARD = os.path.join("DLL", "x64", "HTHardDll.dll")
 DLL_PATH_HTSoft = os.path.join("DLL", "x64", "HTSoftDll.dll")
@@ -47,7 +46,7 @@ class CHard(object):
 
     TimeDIV = c_ushort(9)
     YTFormat = c_ushort(YT_NORMAL)
-
+    """
     ControlData = CONTROLDATA()
     ControlData.nCHSet = 0x0F  # 所有通道打开
     ControlData.nTimeDIV = TimeDIV  # Factory Setup
@@ -70,7 +69,7 @@ class CHard(object):
     RelayControl.nTrigSource = CH1
     RelayControl.bTrigFilt = 0
     RelayControl.nALT = 0
-
+    """
     Collect = c_bool(True)
 
     TriggerMode = c_ushort(EDGE)
@@ -95,31 +94,76 @@ class CHard(object):
         pass
 
     def Init(self):
-        DeviceIndex = 0
+        self.DeviceIndex = c_ushort(0)
         # dsoSetUSBBus(index) 此方法说明文档指明无效
-        self.init_Hard()
-        self.ADC_CH_ModGain(4)
+        self.init_Hard()  # 硬件初始化
+        self.ADC_CH_ModGain(4)  # 设置由通道模式引起的幅度修正
+        self.read_calibration_data()  # 读取0电平校准数据
+        # 如果未设置侧载入默认值
+        if self.CalLevel[CAL_LEVEL_LEN - 1] != ZERO_FLAG:
+            Cal_level_dict = {
+                0: 16602,
+                1: 60111,
+                2: 17528,
+                3: 59201,
+                4: 17710,
+                5: 58900,
+            }
+            for i in range(ZEROCALI_LEN):
+                Volt = (i % ZEROCALI_PER_CH_LEN) / ZEROCALI_PER_VOLT_LEN
+                if Volt == 5 or Volt == 8 or Volt == 11:
+                    x = (i % ZEROCALI_PER_CH_LEN) % ZEROCALI_PER_VOLT_LEN
+                    self.CalLevel[i] = Cal_level_dict.get(x, default=0)
+
+        # //设置采样率
+
+
         
 
     # 设备初始化
     def init_Hard(self):
-        DeviceIndex = c_ushort(self.DeviceIndex)
+        DeviceIndex = self.DeviceIndex
         result = HTHardDll.dsoInitHard(DeviceIndex)
         if result:
-            logger.info(f"设备-->{self.DeviceIndex}<--初始化成功!")
+            logger.info(f"设备-->{self.DeviceIndex.value}<--初始化成功!")
         else:
-            raise Exception(f"设备-->{self.DeviceIndex}<--初始化失败!")
+            raise Exception(f"设备-->{self.DeviceIndex.value}<--初始化失败!")
         return result
 
     # 通道模式变化时使用
     def ADC_CH_ModGain(self, chanel_mode):
-        DeviceIndex = c_ushort(self.DeviceIndex)
+        DeviceIndex = self.DeviceIndex
         CH_Mod = c_ushort(chanel_mode)
         result = HTHardDll.dsoHTADCCHModGain(DeviceIndex, CH_Mod)
         if result:
-            logger.info(f"设备-->{self.DeviceIndex}<--通道模式改变 =>{chanel_mode}!")
+            logger.info(f"设备-->{int(self.DeviceIndex.value)}<--通道模式改变 =>{chanel_mode}!")
         else:
-            raise Exception(f"设备-->{self.DeviceIndex}<--通道模式改变!")
+            raise Exception(f"设备-->{self.DeviceIndex.value}<--通道模式改变!")
+        return result
+
+    # 零电平校准读取函数
+    def read_calibration_data(self):
+        # 神知道这是什么
+        DeviceIndex = self.DeviceIndex
+        result = HTHardDll.dsoHTReadCalibrationData(DeviceIndex, self.CalLevel, CAL_LEVEL_LEN)
+        if result:
+            logger.info(f"device-->{self.DeviceIndex.value}<--零电平校准读取成功!")
+        else:
+            raise Exception(f"设备-->{self.DeviceIndex.value}<--零电平校准读取失败!")
+        return result
+
+    # 设定FPGA的采样率
+    def set_sample_rate(self, YT_format):
+        DeviceIndex = self.DeviceIndex
+        YTFormat = c_ushort(YT_format)
+        array = (c_ushort * 259)()
+        for i in range(0, 259):
+            array[i] = 0
+        short_point_amp_level = pointer(array)
+        control_data = ControlDataStruct()
+        # control_data.
+        RelayControl = RelayControlStruct()
+        result = HTHardDll.dsoHTSetSampleRate(DeviceIndex, short_point_amp_level, YT_format, control_data, RelayControl)
         return result
 
     def ReadData(self):
@@ -127,3 +171,11 @@ class CHard(object):
 
     def startAStatus(self):
         pass
+
+
+def main():
+    Client = CHard()
+    print(Client.read_calibration_data())
+
+if __name__ == '__main__':
+    main()
