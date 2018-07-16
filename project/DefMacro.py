@@ -569,80 +569,11 @@ R_PLAY = 1
 
 STORAGE_MEMORY	0
 STORAGE_DISK	1
-# 结构体
-typedef
-struct
-_HT_MEASURE_ITEM
-{
-BOOL
-Enable;
-short
-nSource;
-short
-nType;
-}HT_MEASURE_ITEM, *PHT_MEASURE_ITEM;
-#
-typedef
-struct
-_HT_MSG_STRUCT
-{
-USHORT
-nType;
-__int64
-nValue;
-double
-dbValue;
-}HTMSG, *PHTMSG;
-#
-typedef
-struct
-_HT_DATA_MATCH
-{
-USHORT
-nTimeDIV; # 时基
-USHORT
-nVoltDIV; # 电压档位
-USHORT
-nLeverPos; # 零电平位置
-long
-nHTriggerPos; # 水平触发点
-ULONG
-nReadDataLen; # 读取的数据长度
-ULONG
-nAlreadyReadLen; # 已经读取的数据长度
-}DATAMATCH, *PDATAMATCH;
 
-# ifdef MINISCOPE
 
-typedef
-struct
-_HT_MINI_CHANNEL
-{
-BOOL
-bEnable[MAX_CH_NUM];
-USHORT
-nVoltDIV[MAX_CH_NUM];
-USHORT
-nTimeDIV;
-USHORT
-nDisLever[MAX_CH_NUM];
-ULONG
-nSrcDataLen;
-# ULONG
-nDisDataLen[MAX_CH_NUM];
-# COLORREF
-clrRGB[MAX_CH_NUM];
-# USHORT
-nHTriggerPos;
-USHORT
-nOpenCHNum;
-USHORT * pData[MAX_CH_NUM];
-ULONG
-nAlreadyReadLen; # 已经读取的数据长度, ROLL / SCAN下有效
-}MINICH;
 
-# endif
-#
+
+
 
 # 消息
 MSG_NULL = 0x00	#空消息
@@ -874,3 +805,107 @@ CHARGINGCIRCUITS DIESEL+1#18
 GENERATOR	CHARGINGCIRCUITS+1#19
 # endif GENERATOR_LEN	1440 #800
 """
+
+''' 结构体 '''
+class HT_MEASURE_ITEM(Structure):
+
+    _fields_ = [
+        ("Enable", c_int),
+        ("nSource", c_short),
+        ("nType", c_short)
+    ]
+
+
+class CAN_DECODE(Structure):
+
+    _fields_ = [
+        ("nInfo", c_ubyte),
+        ("nAck", c_ubyte),
+        ("nEOF", c_ubyte),
+        # FIXME:结构体中成员数组定义方式是否是这样，存疑。
+        ("pData", (c_ubyte*8)),
+        ("nReadCRC", c_ushort),
+        ("nCalCRC", c_ushort),
+        ("nStartIndex", c_ushort),
+        ("nEndIndex", c_ushort),
+        ("nID", c_ulong)
+    ]
+
+
+class LIN_DECODE(Structure):
+
+    _fields_ = [
+        ("nID", c_ubyte),
+        ("pData", c_ubyte*8),
+        ("nReadCRC", c_ubyte),
+        ("nCalCRC", c_ubyte),
+        ("nStartIndex", c_ushort),
+        ("nEndIndex", c_ushort),
+    ]
+
+class IIC_DECODE(Structure):
+
+    _fields_ = [
+            ("nData", c_ubyte),
+            ("nType", c_ubyte),
+            ("nAck", c_ubyte),
+            ("nStartIndex", c_ushort),
+            ("nEndIndex", c_ushort),
+        ]
+
+class UART_DECODE(Structure):
+
+    _fields_ = [
+            ("nData", c_ubyte),
+            ("nStartIndex", c_ushort),
+            ("nEndIndex", c_ushort),
+        ]
+
+class SPI_DECODE(Structure):
+
+    _fields_ = [
+            ("nData", c_ubyte*4),
+            ("nStartIndex", c_ushort),
+            ("nEndIndex", c_ushort),
+        ]
+
+class HTMSG(Structure):
+
+    _fields_ = [
+            ("nType", c_ushort),
+            ("nValue", c_longlong),
+            ("dbValue", c_double),
+        ]
+
+
+class DATAMATCH(Structure):
+
+    _fields_ = [
+            ("nTimeDIV", c_ushort),
+            ("nVoltDIV", c_ushort),
+            ("nLeverPos", c_ushort),
+            ("nHTriggerPos", c_long),
+            ("nReadDataLen", c_ulong),
+            ("nAlreadyReadLen", c_ulong),
+        ]
+
+'''
+#ifdef MINISCOPE
+
+class MINICH(Structure):
+    ("bEnable", c_int*MAX_CH_NUM),
+    ("nVoltDIV", c_ushort*MAX_CH_NUM),
+    ("nTimeDIV", c_ushort),
+    ("nDisLever", c_ushort*MAX_CH_NUM),
+    ("nSrcDataLen", c_ulong),
+
+	# ("nDisDataLen", c_ulong*MAX_CH_NUM),
+	# ("clrRGB", COLORREF*MAX_CH_NUM),
+	# ("nHTriggerPos", c_ushort),
+	("nOpenCHNum", c_ushort),
+    ("pData", c_ushort*MAX_CH_NUM),
+    # 已经读取的数据长度,ROLL/SCAN下有效
+	("nAlreadyReadLen", c_ulong), 
+
+#endif
+'''
